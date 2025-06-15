@@ -52,9 +52,12 @@ function setupToolHandlers(server: Server): void {
     if (request.params.name === tool.name) {
       try {
         const args = request.params.arguments || {};
+        console.log("[MCP Tool Call] Input parameters:", JSON.stringify(args, null, 2));
+        
         // Use safeParse instead of parse and try-catch.
         const result = schema.safeParse(args);
         if (!result.success) {
+          console.error("[MCP Tool Call] Validation error:", result.error.message);
           throw new McpError(
             ErrorCode.InvalidParams,
             `Invalid parameters: ${result.error.message}`,
@@ -68,8 +71,9 @@ function setupToolHandlers(server: Server): void {
           backgroundColor as string,
         );
 
+        let response;
         if (outputType === "mermaid") {
-          return {
+          response = {
             content: [
               {
                 type: "text",
@@ -77,9 +81,8 @@ function setupToolHandlers(server: Server): void {
               },
             ],
           };
-        }
-        if (outputType === "svg") {
-          return {
+        } else if (outputType === "svg") {
+          response = {
             content: [
               {
                 type: "text",
@@ -87,17 +90,27 @@ function setupToolHandlers(server: Server): void {
               },
             ],
           };
+        } else {
+          response = {
+            content: [
+              {
+                type: "image",
+                data: screenshot?.toString("base64"),
+                mimeType: "image/png",
+              },
+            ],
+          };
         }
-        return {
-          content: [
-            {
-              type: "image",
-              data: screenshot?.toString("base64"),
-              mimeType: "image/png",
-            },
-          ],
-        };
-        // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+        
+        console.log("[MCP Tool Call] Output response:", JSON.stringify({
+          outputType,
+          contentType: response.content[0].type,
+          contentLength: response.content[0].type === "text" 
+            ? response.content[0].text.length 
+            : response.content[0].data?.length
+        }, null, 2));
+        
+        return response;
       } catch (error: any) {
         if (error instanceof McpError) throw error;
         throw new McpError(
