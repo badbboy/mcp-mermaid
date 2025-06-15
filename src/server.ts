@@ -4,8 +4,6 @@ import {
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
-  TextContent,
-  ImageContent,
 } from "@modelcontextprotocol/sdk/types.js";
 import {
   startHTTPStreamableServer,
@@ -54,12 +52,18 @@ function setupToolHandlers(server: Server): void {
     if (request.params.name === tool.name) {
       try {
         const args = request.params.arguments || {};
-        console.log("[MCP Tool Call] Input parameters:", JSON.stringify(args, null, 2));
-        
+        console.log(
+          "[MCP Tool Call] Input parameters:",
+          JSON.stringify(args, null, 2),
+        );
+
         // Use safeParse instead of parse and try-catch.
         const result = schema.safeParse(args);
         if (!result.success) {
-          console.error("[MCP Tool Call] Validation error:", result.error.message);
+          console.error(
+            "[MCP Tool Call] Validation error:",
+            result.error.message,
+          );
           throw new McpError(
             ErrorCode.InvalidParams,
             `Invalid parameters: ${result.error.message}`,
@@ -67,15 +71,22 @@ function setupToolHandlers(server: Server): void {
         }
 
         const { mermaid, theme, backgroundColor, outputType = "png" } = args;
+        console.log("[MCP Tool Call] Processing with:", {
+          theme,
+          backgroundColor,
+          outputType,
+        });
+
         const { id, svg, screenshot } = await renderMermaid(
           mermaid as string,
           theme as string,
           backgroundColor as string,
         );
 
-        let response: { content: (TextContent | ImageContent)[] };
+        console.log("[MCP Tool Call] Generated result with id:", id);
+
         if (outputType === "mermaid") {
-          response = {
+          return {
             content: [
               {
                 type: "text",
@@ -83,8 +94,9 @@ function setupToolHandlers(server: Server): void {
               },
             ],
           };
-        } else if (outputType === "svg") {
-          response = {
+        }
+        if (outputType === "svg") {
+          return {
             content: [
               {
                 type: "text",
@@ -92,27 +104,17 @@ function setupToolHandlers(server: Server): void {
               },
             ],
           };
-        } else {
-          response = {
-            content: [
-              {
-                type: "image",
-                data: screenshot?.toString("base64"),
-                mimeType: "image/png",
-              },
-            ],
-          };
         }
-        
-        console.log("[MCP Tool Call] Output response:", JSON.stringify({
-          outputType,
-          contentType: response.content[0].type,
-          contentLength: response.content[0].type === "text" 
-            ? (response.content[0] as TextContent).text.length 
-            : (response.content[0] as ImageContent).data?.length
-        }, null, 2));
-        
-        return response;
+        return {
+          content: [
+            {
+              type: "image",
+              data: screenshot?.toString("base64"),
+              mimeType: "image/png",
+            },
+          ],
+        };
+        // biome-ignore lint/suspicious/noExplicitAny: <explanation>
       } catch (error: any) {
         if (error instanceof McpError) throw error;
         throw new McpError(
