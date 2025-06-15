@@ -4,6 +4,8 @@ import {
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
+  TextContent,
+  ImageContent,
 } from "@modelcontextprotocol/sdk/types.js";
 import {
   startHTTPStreamableServer,
@@ -71,7 +73,7 @@ function setupToolHandlers(server: Server): void {
           backgroundColor as string,
         );
 
-        let response;
+        let response: { content: (TextContent | ImageContent)[] };
         if (outputType === "mermaid") {
           response = {
             content: [
@@ -106,8 +108,8 @@ function setupToolHandlers(server: Server): void {
           outputType,
           contentType: response.content[0].type,
           contentLength: response.content[0].type === "text" 
-            ? response.content[0].text.length 
-            : response.content[0].data?.length
+            ? (response.content[0] as TextContent).text.length 
+            : (response.content[0] as ImageContent).data?.length
         }, null, 2));
         
         return response;
